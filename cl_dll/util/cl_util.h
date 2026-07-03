@@ -31,10 +31,15 @@
 #include "studio.h"
 #include "r_studioint.h"
 #include "prediction_files.h"
+#include "wrect.h"
 
 extern bool g_crosshair_active; // true after calling SetCrosshair with a valid crosshair
 extern bool is_software_renderer;
 extern bool g_studio_init; // don't call studio functions before this is true
+
+// tags any sprite modelindex that will appear broken in software mode
+extern bool g_broken_software_sprites[MAX_PRECACHE];
+extern HashMap<uint16_t> g_model_indexes; // maps a model name to its index
 
 // Macros to hook function calls into the HUD object
 #define HOOK_MESSAGE(x) gEngfuncs.pfnHookUserMsg(#x, __MsgFunc_##x );
@@ -223,3 +228,8 @@ void COM_FileBase(const char* in, char* out);
 
 // true if the given gamedir is active
 int IsGame(const char* game);
+
+void InitModelData();
+
+// returns 0 for invalid model
+int MODEL_INDEX(const char* name);

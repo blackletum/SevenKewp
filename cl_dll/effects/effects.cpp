@@ -10,6 +10,7 @@
 #include "gfx_util.h"
 #include "triangleapi.h"
 #include "GL/gl.h"
+#include "cl_eng_wrappers.h"
 
 #define MAX_ADV_SPRITES 512
 
@@ -165,10 +166,9 @@ void SpriteAdvCallback(tempent_s* tempent, float frametime, float curtime) {
 
 void EF_WaterSplash(Vector origin, int splashSprIdx, int wakeSprIdx, const char* sample, float scale, int fps, float volume, int pitch) {
 	model_s* splashModel = gEngfuncs.hudGetModelByIndex(splashSprIdx);
-	model_s* wakeModel = gEngfuncs.hudGetModelByIndex(wakeSprIdx);
-	tempent_s* splashEnt = gEngfuncs.pEfxAPI->CL_TentEntAllocCustom(origin, splashModel, 1, SpriteAdvCallback);
-	tempent_s* wakeEnt = gEngfuncs.pEfxAPI->CL_TentEntAllocCustom(origin, wakeModel, 1, SpriteAdvCallback);
-	tempent_s* wakeEnt2 = gEngfuncs.pEfxAPI->CL_TentEntAllocCustom(origin, wakeModel, 1, SpriteAdvCallback);
+	tempent_s* splashEnt = CL_TentEntAllocCustom(origin, splashSprIdx, 1, SpriteAdvCallback);
+	tempent_s* wakeEnt = CL_TentEntAllocCustom(origin, wakeSprIdx, 1, SpriteAdvCallback);
+	tempent_s* wakeEnt2 = CL_TentEntAllocCustom(origin, wakeSprIdx, 1, SpriteAdvCallback);
 
 	if (!splashEnt || !wakeEnt)
 		return;
@@ -178,6 +178,7 @@ void EF_WaterSplash(Vector origin, int splashSprIdx, int wakeSprIdx, const char*
 	splashAdv.args.renderMode = kRenderTransAlpha;
 	splashAdv.args.renderamt = 200;
 	splashAdv.args.framerate = fps;
+	//splashAdv.args.useLightmap = true; // looks better in software mode but not opengl
 	LinkSpriteAdv(splashEnt, splashAdv);
 	splashEnt->entity.origin.z += splashModel->maxs.z * splashEnt->entity.curstate.scale;
 
@@ -193,11 +194,13 @@ void EF_WaterSplash(Vector origin, int splashSprIdx, int wakeSprIdx, const char*
 	wakeAdv.args.fadeTime = 8;
 	wakeAdv.args.expandSpeed = 15;
 	wakeAdv.args.scale = scale * 10;
+	//wakeAdv.args.useLightmap = true;
 	LinkSpriteAdv(wakeEnt, wakeAdv);
 
 	SpriteAdv& wakeAdv2 = AllocSpriteAdv();
 	wakeAdv2.args = wakeAdv.args;
 	wakeAdv2.args.rx = -90; // underside of the wake
+	//wakeAdv2.args.useLightmap = true;
 	LinkSpriteAdv(wakeEnt2, wakeAdv2);
 
 	if (volume > 0) {

@@ -608,11 +608,29 @@ public:
 		SetThink(&CSplashWake::Think);
 
 		pev->renderamt = 0;
+		//pev->rendercolor = GetLighting().ApplyGamma().ToVector();
 
 		m_splashTime = gpGlobals->time;
 
 		if (pev->iuser1) {
 			m_splashTime += 0.1f + pev->iuser1 * 0.001f;
+		}
+
+		// sprite looks too broken in the vanilla software renderer, so use a beamdisk instead
+		for (int i = 1; i < gpGlobals->maxClients; i++) {
+			CBasePlayer* plr = UTIL_PlayerByIndex(i);
+			if (!plr)
+				continue;
+
+			edict_t* ed = plr->edict();
+			if (!UTIL_TestPVS(pev->origin, ed))
+				continue;
+
+			if (!plr->IsSevenKewpClient() && plr->m_clientRenderer == CLIENT_RENDERER_SOFTWARE) {
+				float radius = 80 * pev->scale * 2;
+				UTIL_BeamDisk(pev->origin, radius, g_waterSplashWake2Spr, 0, 0, 16, 0, 0,
+					RGBA(255, 255, 255, 64), 0, MSG_ONE_UNRELIABLE, ed);
+			}
 		}
 
 		pev->nextthink = gpGlobals->time + 0.02f;
@@ -631,7 +649,37 @@ public:
 				int fps = 20 - ratio * 2;
 				int pitch = 70 - ratio * 5;
 
-				UTIL_Explosion(pev->origin + offset, g_waterSplashSpr, pev->scale * 10, fps, 1 | 2 | 4 | 8);
+				SpriteAdvArgs args;
+				memset(&args, 0, sizeof(args));
+				args.framerate = fps*10;
+				args.scale = pev->scale * 10;
+				args.renderamt = 200;
+				args.modelIdx = g_waterSplashSpr;
+
+				for (int i = 1; i < gpGlobals->maxClients; i++) {
+					CBasePlayer* plr = UTIL_PlayerByIndex(i);
+					if (!plr)
+						continue;
+
+					edict_t* ed = plr->edict();
+					if (!UTIL_TestPVS(pev->origin, ed))
+						continue;
+
+					if (plr->IsSevenKewpClient()) {
+						args.renderMode = plr->m_clientRenderer == CLIENT_RENDERER_SOFTWARE ? kRenderTransAdd : kRenderTransAlpha;
+						//args.useLightmap = plr->m_clientRenderer == CLIENT_RENDERER_SOFTWARE;
+						args.renderamt = plr->m_clientRenderer == CLIENT_RENDERER_SOFTWARE ? 200 : 255;
+						UTIL_SpriteAdv(pev->origin + offset, args, MSG_ONE_UNRELIABLE, NULL, ed);
+					}
+					else {
+						uint8_t eflags = TE_EXPLFLAG_NODLIGHTS | TE_EXPLFLAG_NOSOUND | TE_EXPLFLAG_NOPARTICLES;
+						if (plr->m_clientRenderer != CLIENT_RENDERER_SOFTWARE) {
+							eflags |= TE_EXPLFLAG_NOADDITIVE;
+						}
+						UTIL_ExplosionMsg(pev->origin + offset, g_waterSplashSpr, pev->scale * 10, fps,
+							eflags, MSG_ONE_UNRELIABLE, ed);
+					}
+				}
 
 				EMIT_SOUND_DYN(edict(), CHAN_BODY, WATER_SPLASH2_SND_PATH, 1.0f, ATTN_NORM, 0, RANDOM_LONG(95, 105));
 				EMIT_SOUND_DYN(edict(), CHAN_ITEM, RANDOM_SOUND_ARRAY(g_waterSplashSounds), 1.0f, ATTN_NORM, 0, pitch);
@@ -654,6 +702,14 @@ public:
 
 		m_lastTime = gpGlobals->time;
 		pev->nextthink = gpGlobals->time + 0.02f;
+	}
+
+	int AddToFullPack(struct entity_state_s* state, CBasePlayer* player) {
+		if (player->m_clientRenderer == CLIENT_RENDERER_SOFTWARE && !player->IsSevenKewpClient()) {
+			return 0; // too broken in the vanilla software renderer. Use the beamdisk instead.
+		}
+
+		return 1;
 	}
 };
 

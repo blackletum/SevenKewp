@@ -166,6 +166,7 @@ set(MISC_HDR
 set(UTIL_HDR
 	util/cl_util.h
 	util/interpolation.h
+	util/cl_eng_wrappers.h
 	../game_shared/prediction_files.h
 	../common/parsemsg.h
 	../game_shared/shared_util.h
@@ -178,6 +179,7 @@ set(UTIL_HDR
 set(UTIL_SRC
 	util/interpolation.cpp
 	util/cl_util.cpp
+	util/cl_eng_wrappers.cpp
 	../game_shared/HashMap.cpp
 	../game_shared/StringPool.cpp
 	../common/parsemsg.cpp

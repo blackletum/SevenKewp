@@ -15,12 +15,12 @@ void gfx_draw_fake_hud_quad(float minX, float minY, float maxX, float maxY);
 void gfx_draw_sprite_weapon();
 
 // draw a sprite
-void gfx_draw_sprite(Vector origin, int modelIdx, int frame = 0, SpriteMode sprMode = SPR_MODE_PARALLEL,
+void gfx_draw_sprite(Vector origin, Vector angles, int modelIdx, int frame = 0, SpriteMode sprMode = SPR_MODE_PARALLEL,
 	float scale = 1.0f, RGBA color = RGBA(255, 255, 255, 255), AngleSpriteMode angleMode = ANGLE_SPRITE_NONE);
 
-// render a sprite for this entity
-void queue_sprite_render_ent(int entindex);
-void render_sprite_queue();
+
+void queue_sprite_render_ent(cl_entity_t* entindex); // render a sprite for this entity
+void render_sprite_queue(); // render all queued sprites and clear the queue
 
 // convert a screen space coordinate to world space
 Vector ScreenToWorld(const Vector& screen);

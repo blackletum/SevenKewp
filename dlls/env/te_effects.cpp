@@ -521,7 +521,7 @@ void UTIL_Tracer(Vector start, Vector end, int color, int msgMode, edict_t* targ
 void UTIL_Explosion(Vector origin, int sprIndex, uint8_t scale, uint8_t framerate, uint8_t flags) {
 	bool expUnderwater = UTIL_PointInLiquid(origin) && UTIL_PointContents(origin + Vector(0,0,32)) != CONTENTS_EMPTY;
 	bool isValidTempOri = UTIL_IsValidTempEntOrigin(origin);
-	bool wantSounds = !(flags & 4);
+	bool wantSounds = !(flags & TE_EXPLFLAG_NOSOUND);
 
 	static bool replacedExplosionSounds = false;
 	static const char* expSounds[3] = {
@@ -563,13 +563,13 @@ void UTIL_Explosion(Vector origin, int sprIndex, uint8_t scale, uint8_t framerat
 
 			if (expUnderwater != plrUnderwater) {
 				shouldMuffle = true;
-				eflags |= 4;
+				eflags |= TE_EXPLFLAG_NOSOUND;
 			}
 			else if (replacedExplosionSounds) {
-				eflags |= 4;
+				eflags |= TE_EXPLFLAG_NOSOUND;
 			}
 			if (expUnderwater)
-				eflags |= 8;
+				eflags |= TE_EXPLFLAG_NOPARTICLES;
 		}
 
 		if (!UTIL_TestPAS(origin, plr->edict())) {
@@ -2156,6 +2156,9 @@ void UTIL_WaterSplashMsg(Vector pos, float scale, int playSound, edict_t* skipEn
 		}
 
 		hlPlayers |= PLRBIT(plr->edict());
+		uint8_t eflags = TE_EXPLFLAG_NODLIGHTS | TE_EXPLFLAG_NOSOUND | TE_EXPLFLAG_NOPARTICLES;
+		if (plr->m_clientRenderer != CLIENT_RENDERER_SOFTWARE)
+			eflags |= TE_EXPLFLAG_NOADDITIVE; // black background otherwise
 
 		MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, NULL, plr->edict());
 		WRITE_BYTE(TE_EXPLOSION);
@@ -2165,33 +2168,15 @@ void UTIL_WaterSplashMsg(Vector pos, float scale, int playSound, edict_t* skipEn
 		WRITE_SHORT(g_waterSplash2Spr);
 		WRITE_BYTE(sz);
 		WRITE_BYTE(fps);
-		WRITE_BYTE(1 | 2 | 4 | 8);
+		WRITE_BYTE(eflags);
 		MESSAGE_END();
 
 		if (!validHlTempOri)
 			continue; // too expensive to use the entity version of the splash wake
 
 		float radius = 80 * ratio;
-		MESSAGE_BEGIN(MSG_ONE_UNRELIABLE, SVC_TEMPENTITY, NULL, plr->edict());
-		WRITE_BYTE(TE_BEAMDISK);
-		WRITE_COORD(pos.x);
-		WRITE_COORD(pos.y);
-		WRITE_COORD(pos.z);
-		WRITE_COORD(pos.x);
-		WRITE_COORD(pos.y);
-		WRITE_COORD(pos.z + radius); // reach damage radius over .2 seconds
-		WRITE_SHORT(g_waterSplashWake2Spr);
-		WRITE_BYTE(0);
-		WRITE_BYTE(128);
-		WRITE_BYTE(12);
-		WRITE_BYTE(0);
-		WRITE_BYTE(255);
-		WRITE_BYTE(255);
-		WRITE_BYTE(255);
-		WRITE_BYTE(255);
-		WRITE_BYTE(64);
-		WRITE_BYTE(0);
-		MESSAGE_END();
+		UTIL_BeamDisk(pos, radius, g_waterSplashWake2Spr, 0, 0, 12, 0, 0,
+			RGBA(255, 255, 255, 64), 0, MSG_ONE_UNRELIABLE, plr->edict());
 	}
 
 	if (playSound && hlPlayers && validHlTempOri) {

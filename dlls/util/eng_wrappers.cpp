@@ -940,7 +940,7 @@ float GET_LIGHT_STYLE(int style) {
 	style = clampi(style, 0, MAX_LIGHTSTYLE_PATTERNS - 1);
 
 	if (!g_lightStyles[style]) {
-		return 0;
+		return 1.0f;
 	}
 
 	const float full_bright = 'm' - 'a'; // m is default/100% brightness. z is 200%. a is black;

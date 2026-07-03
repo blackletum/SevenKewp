@@ -12,6 +12,7 @@
 #include "ev_hldm.h"
 #include "mstream.h"
 #include "sprites.h"
+#include "cl_eng_wrappers.h"
 
 int __MsgFunc_ToxicCloud(const char* pszName, int iSize, void* pbuf) {
 	BEGIN_READ(pbuf, iSize);
@@ -23,15 +24,14 @@ int __MsgFunc_ToxicCloud(const char* pszName, int iSize, void* pbuf) {
 	cl_entity_t* ent = gEngfuncs.GetEntityByIndex(idx);
 
 	if (ent) {
-		int modelindex;
-		model_s* model = gEngfuncs.CL_LoadModel(RemapFile("sprites/hlcoop/puff1.spr"), &modelindex);
-
-		if (!model)
-			return 1;
-
 		Vector pos = ent->origin;
 
-		tempent_s* temp = gEngfuncs.pEfxAPI->CL_TentEntAllocCustom(&pos.x, model, 1, SpriteAdvCallback);
+		int modelIdx = MODEL_INDEX(RemapFile("sprites/hlcoop/puff1.spr"));
+		tempent_s* temp = CL_TentEntAllocCustom(&pos.x, modelIdx, 1, SpriteAdvCallback);
+
+		if (!temp)
+			return 1;
+
 		temp->die = gEngfuncs.GetClientTime() + 3.0f;
 
 		float x = UTIL_SharedRandomLong(seed, -100, 100) * 0.01f;
@@ -150,8 +150,7 @@ int __MsgFunc_SpriteAdv(const char* pszName, int iSize, void* pbuf) {
 		}
 	}
 
-	model_s* model = gEngfuncs.hudGetModelByIndex(modelIdx);
-	tempent_s* temp = gEngfuncs.pEfxAPI->CL_TentEntAllocCustom(origin, model, 1, SpriteAdvCallback);
+	tempent_s* temp = CL_TentEntAllocCustom(origin, modelIdx, 1, SpriteAdvCallback);
 
 	if (!temp)
 		return 1;

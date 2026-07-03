@@ -13,8 +13,6 @@
 #define	DEFAULT_VIEWHEIGHT	28
 #define VEC_DUCK_VIEW 12
 
-#define FTENT_FADEOUT			0x00000080
-
 #define DMG_GENERIC			0			// generic damage was done
 #define DMG_CRUSH			(1 << 0)	// crushed by falling or moving object
 #define DMG_BULLET			(1 << 1)	// shot

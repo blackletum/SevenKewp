@@ -336,6 +336,7 @@ void CL_DLLEXPORT HUD_Frame( double time )
 
 		if (world && world->model != NULL) {
 			gHUD.WorldInit();
+			InitModelData();
 			g_connection_phase = 2;
 		}
 	} else if (g_connection_phase == 2) {

@@ -27,6 +27,7 @@
 #include "shared_util.h"
 #include <string.h>
 #include "ModPlayerState.h"
+#include "sprites.h"
 
 #ifndef M_PI
 #define M_PI		3.14159265358979323846	// matches value in gcc v2 math.h
@@ -35,6 +36,9 @@
 #ifdef _WIN32
 vec3_t vec3_origin( 0, 0, 0 ); // linux complains this is doubly defined, yet windows requires it
 #endif
+
+bool g_broken_software_sprites[MAX_PRECACHE];
+HashMap<uint16_t> g_model_indexes;
 
 void printd(const char* format, ...) // use this to print inside pm_* code
 {
@@ -161,4 +165,60 @@ int IsGame(const char* game)
 			return 1;
 	}
 	return 0;
+}
+
+int MODEL_INDEX(const char* name) {
+	uint16_t* idx = g_model_indexes.get(name);
+	return idx ? *idx : 0;
+}
+
+void InitModelData() {
+	memset(g_broken_software_sprites, 0, sizeof(g_broken_software_sprites));
+	g_model_indexes.clear();
+
+	for (int i = 0; i < MAX_PRECACHE; i++) {
+		model_t* model = gEngfuncs.hudGetModelByIndex(i);
+		g_model_indexes.put(model->name, i);
+
+		if (is_software_renderer) {
+			if (!model || model->type != mod_sprite)
+				continue;
+
+			msprite_cl_t* header = (msprite_cl_t*)model->cache.data;
+			bool isBroken = false;
+
+			if (header->texFormat == SPR_FMT_INDEXALPHA) {
+				isBroken = true;
+			}
+			else {
+				switch (header->type) {
+				case SPR_MODE_PARALLEL_UPRIGHT:
+				case SPR_MODE_FACING_UPRIGHT:
+				case SPR_MODE_ORIENTED:
+				case SPR_MODE_PARALLEL_ORIENTED:
+					// these modes distort wildly at non-parallel view angles
+					isBroken = true;
+					break;
+				case SPR_MODE_PARALLEL: {
+					for (int k = 0; k < header->numframes; k++) {
+						mspriteframe_sw_t* frame = header->frames[k].frameptr_sw;
+						int offset_x = frame->left - (frame->width / -2);
+						int offset_y = frame->up - (frame->height / 2);
+
+						// sprites with frame offsets get cropped
+						if (abs(offset_x) > 1 || abs(offset_y) > 1) {
+							isBroken = true;
+							break;
+						}
+					}
+					break;
+				}
+				}
+			}
+
+			if (isBroken) {
+				g_broken_software_sprites[i] = true;
+			}
+		}
+	}
 }

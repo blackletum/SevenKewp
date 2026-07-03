@@ -12,7 +12,7 @@
 // entities that should have sprites rendered in their place are added here
 // then drawn at transparent triangle render time
 #define MAX_SPRITE_RENDER_QUEUE_SZ 512
-uint16_t g_spriteRenderQueue[MAX_SPRITE_RENDER_QUEUE_SZ];
+cl_entity_t* g_spriteRenderQueue[MAX_SPRITE_RENDER_QUEUE_SZ];
 int g_spriteRenderQueueSz;
 
 void gfx_start_colored_rendering(int polyMode, const RGBA& color) {
@@ -353,6 +353,11 @@ void gfx_draw_sprite(Vector origin, Vector angles, int modelIdx, int frame, Spri
 		sprMode = (SpriteMode)header->type;
 	}
 
+	Vector sprForward, sprRight, sprUp;
+	if (angleMode != ANGLE_SPRITE_NONE || sprMode == SPR_MODE_ORIENTED) {
+		AngleVectors(angles, sprForward, sprRight, sprUp);
+	}
+
 	switch (sprMode) {
 	default:
 	case SPR_MODE_PARALLEL:
@@ -366,15 +371,15 @@ void gfx_draw_sprite(Vector origin, Vector angles, int modelIdx, int frame, Spri
 		right = gPlayerSim.cam_right;
 		break;
 	case SPR_MODE_ORIENTED:
-		break; // not implemented - needs lots of testing
+		up = sprUp;
+		right = sprRight;
+		break;
 	}
 
 	up = up * scale;
 	right = right * scale;
 
 	if (angleMode == ANGLE_SPRITE_8WAY) {
-		Vector sprForward, sprRight, sprUp;
-		AngleVectors(angles, sprForward, sprRight, sprUp);
 		int angle = GetSpriteAngleFrame(origin, sprForward, sprRight, gPlayerSim.v_origin);
 		frame = frame * 8 + angle;
 	}
@@ -403,8 +408,8 @@ void gfx_draw_sprite(Vector origin, Vector angles, int modelIdx, int frame, Spri
 	Vector bl = origin + fleft * right + fdown * up;
 
 	int rmode = kRenderTransTexture;
-	if (is_software_renderer) {
-		rmode = color.a < 255 ? kRenderTransAdd : kRenderTransAlpha;
+	if (is_software_renderer && color.a < 255) {
+		rmode = kRenderTransAdd;
 	}
 
 	gEngfuncs.pTriAPI->RenderMode(rmode);
@@ -420,9 +425,9 @@ void gfx_draw_sprite(Vector origin, Vector angles, int modelIdx, int frame, Spri
 	gEngfuncs.pTriAPI->End();
 }
 
-void queue_sprite_render_ent(int entindex) {
+void queue_sprite_render_ent(cl_entity_t* ent) {
 	if (g_spriteRenderQueueSz < MAX_SPRITE_RENDER_QUEUE_SZ) {
-		g_spriteRenderQueue[g_spriteRenderQueueSz++] = entindex;
+		g_spriteRenderQueue[g_spriteRenderQueueSz++] = ent;
 	}
 	else {
 		PRINTF("Sprite queue overflowed\n");
@@ -431,20 +436,30 @@ void queue_sprite_render_ent(int entindex) {
 
 void render_sprite_ent(cl_entity_t* ent) {
 	entity_state_t& state = ent->curstate;
-	int sprIdx = state.weaponmodel & 0x1ff;
-	AngleSpriteMode sprMode = (AngleSpriteMode)(state.weaponmodel >> 9);
+
+	int sprIdx = state.modelindex;
+	AngleSpriteMode sprMode = ANGLE_SPRITE_NONE;
+
+	if (state.weaponmodel) {
+		sprIdx = state.weaponmodel & 0x1ff;
+		sprMode = (AngleSpriteMode)(state.weaponmodel >> 9);
+	}
+	
 	RGBA color(state.rendercolor.r, state.rendercolor.g, state.rendercolor.b, state.renderamt);
 	if (state.rendermode == kRenderNormal)
 		color.a = 255;
+	if (color.r == 0 && color.g == 0 && color.b == 0) {
+		color = RGBA(255, 255, 255, color.a);
+	}
 
-	gfx_draw_sprite(state.origin, state.angles, sprIdx, state.frame, SPR_MODE_AUTO, state.scale, color, sprMode);
+	gfx_draw_sprite(ent->origin, ent->angles, sprIdx, state.frame, SPR_MODE_AUTO, state.scale, color, sprMode);
 }
 
 void render_sprite_queue() {
 	if (!is_software_renderer) {
 		for (int i = 0; i < g_spriteRenderQueueSz; i++) {
-			cl_entity_t* ent = gEngfuncs.GetEntityByIndex(g_spriteRenderQueue[i]);
-			if (!ent || !ent->curstate.weaponmodel) {
+			cl_entity_t* ent = g_spriteRenderQueue[i];
+			if (!ent) {
 				continue;
 			}
 
@@ -462,8 +477,8 @@ void render_sprite_queue() {
 		int numSort = 0;
 
 		for (int i = 0; i < g_spriteRenderQueueSz; i++) {
-			cl_entity_t* ent = gEngfuncs.GetEntityByIndex(g_spriteRenderQueue[i]);
-			if (!ent || !ent->curstate.weaponmodel) {
+			cl_entity_t* ent = g_spriteRenderQueue[i];
+			if (!ent) {
 				continue;
 			}
 

@@ -46,11 +46,17 @@ int CL_DLLEXPORT HUD_AddEntity( int type, struct cl_entity_s *ent, const char *m
 		break;
 	}
 
-	if (ent->curstate.weaponmodel && !ent->player) {
-		// weaponmodel is used to render angled sprites on top of the existing model.
-		// The entity can't only use a sprite or else a physent won't be created for it,
-		// which breaks collision for movement, weapons, and status text.
-		queue_sprite_render_ent(ent->index);
+	if (!ent->player) {
+		if (ent->curstate.weaponmodel) {
+			// weaponmodel is used to render angled sprites on top of the existing model.
+			// The entity can't only use a sprite or else a physent won't be created for it,
+			// which breaks collision for movement, weapons, and status text.
+			queue_sprite_render_ent(ent);
+		}
+		else if (is_software_renderer && g_broken_software_sprites[ent->curstate.modelindex]) {
+			queue_sprite_render_ent(ent);
+			return 0; // Don't let the engine render this sprite. It's too broken.
+		}
 	}
 
 	// each frame every entity passes this function, so the overview hooks it to filter the overview entities
@@ -771,7 +777,10 @@ void CL_DLLEXPORT HUD_TempEntUpdate (
 			// Cull to PVS (not frustum cull, just PVS)
 			if ( !(pTemp->flags & FTENT_NOMODEL ) )
 			{
-				if ( !Callback_AddVisibleEntity( &pTemp->entity ) )
+				if (pTemp->flags & FTENT_CUSTOM_SPR_RENDER) {
+					queue_sprite_render_ent(&pTemp->entity);
+				}
+				else if ( !Callback_AddVisibleEntity( &pTemp->entity ) )
 				{
 					if ( !(pTemp->flags & FTENT_PERSIST) ) 
 					{
