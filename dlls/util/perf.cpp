@@ -40,6 +40,13 @@ void perf_finalize() {
 	}
 
 	g_perf_metrics.playerThink = g_perf_metrics.playerPostThink + g_perf_metrics.playerPreThink;
+
+	if (g_perf_metrics.entityPhysics > mp_perf.value)
+		perf_log_plugin_hook_timing("GAME", "EntityPhysics", g_perf_metrics.entityPhysics);
+	if (g_perf_metrics.entityThinks > mp_perf.value)
+		perf_log_plugin_hook_timing("GAME", "EntityThinks", g_perf_metrics.entityThinks);
+	if (g_perf_metrics.addToFullPack > mp_perf.value)
+		perf_log_plugin_hook_timing("GAME", "AddToFullPack", g_perf_metrics.addToFullPack);
 }
 
 void perf_add_warning(std::string source, std::string func, uint32_t millis) {
